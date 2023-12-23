@@ -3,12 +3,17 @@
 
 #include <stddef.h>
 
+/// Builds a message based on the protocol
+/// @param arguments Arguments of the message
+/// @param num_arguments Number of arguments of the message
+char* build_message(const char **arguments, int num_arguments);
+
 /// Connects to an EMS server.
 /// @param req_pipe_path Path to the name pipe to be created for requests.
 /// @param resp_pipe_path Path to the name pipe to be created for responses.
 /// @param server_pipe_path Path to the name pipe where the server is listening.
 /// @return 0 if the connection was established successfully, 1 otherwise.
-int ems_setup(char const* req_pipe_path, char const* resp_pipe_path, char const* server_pipe_path);
+int ems_setup(char const* req_pipe_path, char const* resp_pipe_path, char const* server_pipe_path, int *session_id);
 
 /// Disconnects from an EMS server.
 /// @return 0 in case of success, 1 otherwise.

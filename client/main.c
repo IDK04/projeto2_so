@@ -14,10 +14,14 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  if (ems_setup(argv[1], argv[2], argv[3])) {
+  int session_id = -1;
+
+  if (ems_setup(argv[1], argv[2], argv[3], &session_id)) {
     fprintf(stderr, "Failed to set up EMS\n");
     return 1;
   }
+
+  printf("%d\n", session_id);
 
   const char* dot = strrchr(argv[4], '.');
   if (dot == NULL || dot == argv[4] || strlen(dot) != 5 || strcmp(dot, ".jobs") ||

@@ -10,24 +10,6 @@
 #include "common/io.h"
 #include "common/constants.h"
 
-char* build_message(const char **arguments, int num_arguments){
-  char* result = malloc(sizeof(char)*MAX_REQUEST_SIZE);
-
-  if(!arguments)
-    return NULL;
-
-  strcat(result,arguments[0]);
-
-  for (int i = 1; i < num_arguments; i++){
-    strcat(result,"|");
-    strcat(result,arguments[i]);
-  }
-
-  strcat(result,"\n");
-
-  return result;
-}
-
 int ems_setup(char const* req_pipe_path, char const* resp_pipe_path, char const* server_pipe_path, int *session_id) {
 
   unlink(req_pipe_path);
@@ -43,17 +25,15 @@ int ems_setup(char const* req_pipe_path, char const* resp_pipe_path, char const*
     return 1;
 
   // Protocol: OP_CODE|REQ_PIPE_PATH|RESP_PIPE_PATH
-  const char* arguments[3];
-  arguments[0] = "1";
-  arguments[1] = req_pipe_path;
-  arguments[2] = resp_pipe_path;
-  char * msg = build_message(arguments, 3);
+  char request[sizeof(int)+(2*sizeof(char)*MAX_PIPE_PATH_SIZE)];
+  int op_code = 1;
+  memcpy(request, &op_code, sizeof(int));
+  strncpy(request+sizeof(int), req_pipe_path, sizeof(char)*MAX_PIPE_PATH_SIZE);
+  strncpy(request+sizeof(int)+sizeof(char)*MAX_PIPE_PATH_SIZE, resp_pipe_path, sizeof(char)*MAX_PIPE_PATH_SIZE);
 
-  ssize_t bytes_written = write(server_fd, msg, strlen(msg));
+  ssize_t bytes_written = write(server_fd, request, sizeof(request));
   if (bytes_written < 0)
     return 1;
-
-  free(msg);
 
   // Get the response from the server (this session id)
   /*

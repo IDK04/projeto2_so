@@ -2,6 +2,7 @@
 #define SERVER_PARSER_H
 
 #include <stddef.h>
+#include "common/constants.h"
 
 enum Request {
   SETUP,
@@ -23,7 +24,7 @@ enum Request get_next_req(int fd);
 /// @param req_pipe_path String to store the request pipe of this client.
 /// @param resp_pipe_path String to store the response pipe of this client.
 /// @return 0 if the request was parsed successfully, 1 otherwise.
-int parse_setup(int fd, char* req_pipe_path, char* resp_pipe_path);
+int parse_setup(int fd, char *req_pipe_path, char *resp_pipe_path);
 
 /// Parses a string.
 /// @param fd File descriptor to read from.

@@ -49,13 +49,13 @@ int ems_terminate() {
     return 1;
   }
 
-  if (pthread_rwlock_wrlock(&event_list->rwl) != 0) {
+  /*if (pthread_rwlock_wrlock(&event_list->rwl) != 0) {
     fprintf(stderr, "Error locking list rwl\n");
     return 1;
-  }
+  }*/
 
   free_list(event_list);
-  pthread_rwlock_unlock(&event_list->rwl);
+  //pthread_rwlock_unlock(&event_list->rwl);
   return 0;
 }
 

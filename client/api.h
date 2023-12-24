@@ -3,11 +3,6 @@
 
 #include <stddef.h>
 
-/// Builds a message based on the protocol
-/// @param arguments Arguments of the message
-/// @param num_arguments Number of arguments of the message
-char* build_message(const char **arguments, int num_arguments);
-
 /// Connects to an EMS server.
 /// @param req_pipe_path Path to the name pipe to be created for requests.
 /// @param resp_pipe_path Path to the name pipe to be created for responses.

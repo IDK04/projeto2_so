@@ -16,10 +16,41 @@
 #include "common/io.h"
 #include "operations.h"
 #include "serverparser.h"
+#include "queue.h"
+
+Queue *q;
+int active_clients = 0;
+
+pthread_cond_t active_clients_cond = PTHREAD_COND_INITIALIZER;
+pthread_cond_t empty_q_cond = PTHREAD_COND_INITIALIZER;
+pthread_mutex_t cond_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 void *clientThread(void *arguments){
-  int *parsed_arguments = (int*) arguments;
+  int *session_id = (int*) arguments;
 
+  while(1){
+    if (pthread_mutex_lock(&cond_mutex) != 0) {return NULL;}
+
+    while (empty_q(q)) {
+      pthread_cond_wait(&empty_q_cond, &cond_mutex);
+    }
+
+    while(active_clients>=MAX_SESSION_COUNT){
+      pthread_cond_wait(&active_clients_cond, &cond_mutex);
+    }
+    
+    active_clients++;
+    Client *c = pop(q);
+    if (pthread_mutex_unlock(&cond_mutex) != 0) {return NULL;}
+
+  
+    
+    free(c);
+
+    if (pthread_mutex_lock(&cond_mutex) != 0) {return NULL;}
+    active_clients--;
+    if (pthread_mutex_unlock(&cond_mutex) != 0) {return NULL;}
+  }
 
   return NULL;
 }
@@ -47,6 +78,11 @@ int main(int argc, char* argv[]) {
     fprintf(stderr, "Failed to initialize EMS\n");
     return 1;
   }
+  
+  if(!(q = create_q())){
+    fprintf(stderr, "Failed to initialize queue\n");
+    return 1;
+  }
 
   unlink(argv[1]);
 
@@ -61,55 +97,60 @@ int main(int argc, char* argv[]) {
       return 1;
   }
 
-  pthread_t tid[1];
+  pthread_t tid[MAX_SESSION_COUNT];
 
-  for(int i = 0; i < 1; i++){
+  for(int i = 0; i < MAX_SESSION_COUNT; i++){
     if(pthread_create(&tid[i], 0, clientThread, &i) != 0){
       fprintf(stderr, "Error creating thread\n");
       return 1;
     }
   }
 
-  int kill_server = 0;
-
   while (1) {
 
-    char req_pipe_path[40], resp_pipe_path[40];
+    char req_pipe_path[MAX_PIPE_PATH_SIZE], resp_pipe_path[MAX_PIPE_PATH_SIZE];
     enum Request req = get_next_req(rx); // will either be SETUP or EOC
     if (req == SETUP){
       if (parse_setup(rx, req_pipe_path, resp_pipe_path) != 0) {
         fprintf(stderr, "Couldn't setup client in server\n");
         continue;
       }
-      
-      printf("%s-%s\n",req_pipe_path, resp_pipe_path);
-      kill_server = 0;
 
-      // ADD TO QUEUE
+      Client *new_client = (Client*) malloc(sizeof(struct Client));
+      strcpy(new_client->req_pipe_path, req_pipe_path);
+      strcpy(new_client->resp_pipe_path, resp_pipe_path);
+
+      if (pthread_mutex_lock(&cond_mutex) != 0) {return 1;}
+      push(new_client, q);
+      if (pthread_mutex_unlock(&cond_mutex) != 0) {return 1;}
 
     }
     else{
 
-      if(!kill_server){
-        sleep(2);
-        kill_server = 1;
-        continue;
+      if (pthread_mutex_lock(&cond_mutex) != 0) {return 1;}
+
+      if(active_clients < MAX_SESSION_COUNT){
+        pthread_cond_signal(&active_clients_cond);
       }
 
-      break;
+      if(!empty_q(q)){
+        pthread_cond_signal(&empty_q_cond);
+      }
+
+      if (pthread_mutex_unlock(&cond_mutex) != 0) {return 1;}
     }
   }
 
-  for(int i = 0; i < 1; i++){
+  for(int i = 0; i < MAX_SESSION_COUNT; i++){
     if(pthread_join(tid[i], NULL)){
       fprintf(stderr, "Error joining thread\n");
       return 1;
     }
   }
 
-  //TODO: Close Server
   close(rx);
   unlink(argv[1]);
+  free_q(q);
 
   ems_terminate();
 }

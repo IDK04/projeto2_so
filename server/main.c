@@ -26,7 +26,9 @@ pthread_cond_t empty_q_cond = PTHREAD_COND_INITIALIZER;
 pthread_mutex_t cond_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 void *clientThread(void *arguments){
-  int *session_id = (int*) arguments;
+  int *parsed_arguments = (int*) arguments;
+  int session_id = *parsed_arguments;
+  free(parsed_arguments);
 
   while(1){
     if (pthread_mutex_lock(&cond_mutex) != 0) {return NULL;}
@@ -38,14 +40,25 @@ void *clientThread(void *arguments){
     while(active_clients>=MAX_SESSION_COUNT){
       pthread_cond_wait(&active_clients_cond, &cond_mutex);
     }
-    
+
     active_clients++;
-    Client *c = pop(q);
+    Client *client = pop(q);
     if (pthread_mutex_unlock(&cond_mutex) != 0) {return NULL;}
 
-  
+    if (!client)
+      return NULL;
+
+    int resp_fd = open(client->resp_pipe_path, O_WRONLY);
+    if(resp_fd < 0)
+      return NULL;
     
-    free(c);
+    if (write(resp_fd, &session_id, sizeof(int)) < 0) {
+      return NULL;
+    }
+
+    close(resp_fd);
+    
+    free(client);
 
     if (pthread_mutex_lock(&cond_mutex) != 0) {return NULL;}
     active_clients--;
@@ -100,7 +113,9 @@ int main(int argc, char* argv[]) {
   pthread_t tid[MAX_SESSION_COUNT];
 
   for(int i = 0; i < MAX_SESSION_COUNT; i++){
-    if(pthread_create(&tid[i], 0, clientThread, &i) != 0){
+    int *id = (int*) malloc(sizeof(int));
+    *id = i;
+    if(pthread_create(&tid[i], 0, clientThread, id) != 0){
       fprintf(stderr, "Error creating thread\n");
       return 1;
     }
@@ -126,15 +141,14 @@ int main(int argc, char* argv[]) {
 
     }
     else{
-
       if (pthread_mutex_lock(&cond_mutex) != 0) {return 1;}
-
-      if(active_clients < MAX_SESSION_COUNT){
-        pthread_cond_signal(&active_clients_cond);
-      }
 
       if(!empty_q(q)){
         pthread_cond_signal(&empty_q_cond);
+      }
+
+      if(active_clients < MAX_SESSION_COUNT){
+        pthread_cond_signal(&active_clients_cond);
       }
 
       if (pthread_mutex_unlock(&cond_mutex) != 0) {return 1;}

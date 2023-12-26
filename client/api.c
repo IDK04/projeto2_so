@@ -34,16 +34,20 @@ int ems_setup(char const* req_pipe_path, char const* resp_pipe_path, char const*
   ssize_t bytes_written = write(server_fd, request, sizeof(request));
   if (bytes_written < 0)
     return 1;
+  
+  close(server_fd);
 
   // Get the response from the server (this session id)
-  /*
+
   int resp_fd = open(resp_pipe_path, O_RDONLY);
   if(resp_fd < 0)
     return 1;
   
-  if (parse_uint(resp_fd, session_id, NULL)){
+  if (read(resp_fd, session_id, sizeof(int)) < 0) {
     return 1;
-  }*/
+  }
+
+  close(resp_fd);
 
   return 0;
 }

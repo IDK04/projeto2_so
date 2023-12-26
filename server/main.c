@@ -74,6 +74,9 @@ int process_request(int req_fd, int resp_fd){
       if(parse_show(req_fd,&event_id,&session_id_client)){
           return 0;
       }
+      // por fazer (seguir protocolo: res | rows | cols | seats )
+      // alterar argumentos e função ems_show, escrevemos para o fdout no cliente como está la comentado
+      // atentar na ordem e como vamos fazer
       printf("O laia printou-mos :%d",session_id_client);
       break;
 

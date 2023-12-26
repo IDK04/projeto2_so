@@ -46,8 +46,15 @@ int process_request(int req_fd, int resp_fd){
       if(parse_create(req_fd, &event_id, &num_rows, &num_cols, &session_id_client)){
         return 0;
       }
-      
+      int res = ems_create(event_id,num_rows,num_cols);
+      ssize_t bytes_written = write(resp_fd, &res, sizeof(int));
+      printf("O cliente %d mandou criar e eu criei...\n",session_id_client);
+      if (bytes_written < 0)
+        return 0;
+      if(res)
+        return 0;
       break;
+
 
     case RESERVE:
       break;

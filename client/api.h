@@ -19,7 +19,7 @@ int ems_quit(int session_id);
 /// @param num_rows Number of rows of the event to be created.
 /// @param num_cols Number of columns of the event to be created.
 /// @return 0 if the event was created successfully, 1 otherwise.
-int ems_create(unsigned int event_id, size_t num_rows, size_t num_cols);
+int ems_create(unsigned int event_id, size_t num_rows, size_t num_cols,int *session_id);
 
 /// Creates a new reservation for the given event.
 /// @param event_id Id of the event to create a reservation for.
@@ -27,17 +27,17 @@ int ems_create(unsigned int event_id, size_t num_rows, size_t num_cols);
 /// @param xs Array of rows of the seats to reserve.
 /// @param ys Array of columns of the seats to reserve.
 /// @return 0 if the reservation was created successfully, 1 otherwise.
-int ems_reserve(unsigned int event_id, size_t num_seats, size_t* xs, size_t* ys);
+int ems_reserve(unsigned int event_id, size_t num_seats, size_t* xs, size_t* ys,int *session_id);
 
 /// Prints the given event to the given file.
 /// @param out_fd File descriptor to print the event to.
 /// @param event_id Id of the event to print.
 /// @return 0 if the event was printed successfully, 1 otherwise.
-int ems_show(int out_fd, unsigned int event_id);
+int ems_show(int out_fd, unsigned int event_id,int *session_id);
 
 /// Prints all the events to the given file.
 /// @param out_fd File descriptor to print the events to.
 /// @return 0 if the events were printed successfully, 1 otherwise.
-int ems_list_events(int out_fd);
+int ems_list_events(int out_fd,int *session_id);
 
 #endif  // CLIENT_API_H

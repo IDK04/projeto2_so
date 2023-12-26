@@ -60,9 +60,16 @@ int parse_create(int fd, unsigned int *event_id, size_t *num_rows, size_t *num_c
   if(parse_session_id(fd, session_id)){
     return 1;
   }
-
-  
-
+  // read do fd 
+  if (read(fd,event_id, sizeof(unsigned int)) < 0) {
+    return 1;
+  }
+  if (read(fd,num_rows, sizeof(size_t)) < 0) {
+    return 1;
+  }
+  if (read(fd,num_cols, sizeof(size_t)) < 0) {
+    return 1;
+  }
   return 0;
 }
 

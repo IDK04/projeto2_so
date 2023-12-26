@@ -59,7 +59,7 @@ int main(int argc, char* argv[]) {
           continue;
         }
 
-        if (ems_create(event_id, num_rows, num_columns)) fprintf(stderr, "Failed to create event\n");
+        if (ems_create(event_id, num_rows, num_columns,&session_id)) fprintf(stderr, "Failed to create event\n");
         break;
 
       case CMD_RESERVE:
@@ -70,7 +70,7 @@ int main(int argc, char* argv[]) {
           continue;
         }
 
-        if (ems_reserve(event_id, num_coords, xs, ys)) fprintf(stderr, "Failed to reserve seats\n");
+        if (ems_reserve(event_id, num_coords, xs, ys,&session_id)) fprintf(stderr, "Failed to reserve seats\n");
         break;
 
       case CMD_SHOW:
@@ -79,11 +79,11 @@ int main(int argc, char* argv[]) {
           continue;
         }
 
-        if (ems_show(out_fd, event_id)) fprintf(stderr, "Failed to show event\n");
+        if (ems_show(out_fd, event_id,&session_id)) fprintf(stderr, "Failed to show event\n");
         break;
 
       case CMD_LIST_EVENTS:
-        if (ems_list_events(out_fd)) fprintf(stderr, "Failed to list events\n");
+        if (ems_list_events(out_fd,&session_id)) fprintf(stderr, "Failed to list events\n");
         break;
 
       case CMD_WAIT:

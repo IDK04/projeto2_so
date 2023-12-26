@@ -80,7 +80,7 @@ int ems_quit(int session_id) {
   return 0;
 }
 
-int ems_create(unsigned int event_id, size_t num_rows, size_t num_cols) {
+int ems_create(unsigned int event_id, size_t num_rows, size_t num_cols, int session_id) {
   // Protocol: OP_CODE|REQ_PIPE_PATH|RESP_PIPE_PATH
   char request[sizeof(char)+sizeof(int)];
   memset(request, '\0', sizeof(request));
@@ -88,7 +88,7 @@ int ems_create(unsigned int event_id, size_t num_rows, size_t num_cols) {
   memcpy(request, &op_code, sizeof(char));
   memcpy(request+sizeof(char), &session_id, sizeof(int));
 
-  ssize_t bytes_written = write(server_fd, request, sizeof(request));
+  ssize_t bytes_written = write(req_fd, request, sizeof(request));
   if (bytes_written < 0)
     return 1;
 

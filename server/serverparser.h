@@ -4,14 +4,15 @@
 #include <stddef.h>
 #include "common/constants.h"
 
-enum Request {
+enum Request
+{
   SETUP,
   QUIT,
   CREATE,
   RESERVE,
   SHOW,
   LIST_EVENTS,
-  EOC  // End of requests
+  EOC // End of requests
 };
 
 /// Reads a line and returns the corresponding request.
@@ -26,10 +27,25 @@ enum Request get_next_req(int fd);
 /// @return 0 if the request was parsed successfully, 1 otherwise.
 int parse_setup(int fd, char *req_pipe_path, char *resp_pipe_path);
 
+/// Parses a CREATE message.
+/// @param fd File descriptor to read from.
+/// @param event_id Int to store the event_id.
+/// @param num_rows Int to store the number of rows.
+/// @param num_cols Int to store the number of columns.
+/// @param session_id Int to store the id.
+/// @return 0 if the request was parsed successfully, 1 otherwise.
+int parse_create(int fd, unsigned int *event_id, size_t *num_rows, size_t *num_cols, int *session_id);
+
+/// Parses a session id.
+/// @param fd File descriptor to read from.
+/// @param session_id Int to store the id.
+/// @return 0 if the request was parsed successfully, 1 otherwise.
+int parse_session_id(int fd, int *session_id);
+
 /// Parses a string.
 /// @param fd File descriptor to read from.
 /// @param str String to store in.
 /// @return 0 if the string was parsed successfully, 1 otherwise.
 int parse_str(int fd, char *str);
 
-#endif  // SERVER_PARSER_H
+#endif // SERVER_PARSER_H

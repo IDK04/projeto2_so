@@ -25,6 +25,48 @@ pthread_cond_t active_clients_cond = PTHREAD_COND_INITIALIZER;
 pthread_cond_t empty_q_cond = PTHREAD_COND_INITIALIZER;
 pthread_mutex_t cond_mutex = PTHREAD_MUTEX_INITIALIZER;
 
+int process_request(int req_fd, int resp_fd){
+  int session_id_client;
+  unsigned int event_id;
+  size_t num_rows, num_cols, num_seats, xs, ys;
+
+  switch (get_next_req(req_fd)){
+
+    case SETUP: //Will never be SETUP
+      break;
+      
+    case QUIT:
+      if (parse_session_id(req_fd, &session_id_client)){
+        return 0;
+      }
+      printf("O cliente %d faleceu\n", session_id_client);
+      return 0;
+    
+    case CREATE:
+      if(parse_create(req_fd, &event_id, &num_rows, &num_cols, &session_id_client)){
+        return 0;
+      }
+      
+      break;
+
+    case RESERVE:
+      break;
+
+    case SHOW:
+      break;
+
+    case LIST_EVENTS:
+      break;
+      
+    case EOC:
+      break;
+    
+    default:
+      break;
+  }
+  return 1;
+}
+
 void *clientThread(void *arguments){
   int *parsed_arguments = (int*) arguments;
   int session_id = *parsed_arguments;
@@ -51,13 +93,20 @@ void *clientThread(void *arguments){
     int resp_fd = open(client->resp_pipe_path, O_WRONLY);
     if(resp_fd < 0)
       return NULL;
-    
+
     if (write(resp_fd, &session_id, sizeof(int)) < 0) {
       return NULL;
     }
 
-    close(resp_fd);
-    
+    int req_fd = open(client->req_pipe_path, O_RDONLY);
+    if(resp_fd < 0){
+      return NULL;
+    }
+
+    while(process_request(req_fd, resp_fd));
+
+    close(req_fd);
+    close(resp_fd);    
     free(client);
 
     if (pthread_mutex_lock(&cond_mutex) != 0) {return NULL;}

@@ -120,7 +120,7 @@ int main(int argc, char* argv[]) {
       case EOC:
         close(in_fd);
         close(out_fd);
-        ems_quit();
+        ems_quit(session_id);
         return 0;
     }
   }

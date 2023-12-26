@@ -26,9 +26,10 @@ pthread_cond_t empty_q_cond = PTHREAD_COND_INITIALIZER;
 pthread_mutex_t cond_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 int process_request(int req_fd, int resp_fd){
-  int session_id_client;
+  int session_id_client,res;
   unsigned int event_id;
-  size_t num_rows, num_cols, num_seats, xs, ys;
+  size_t num_rows, num_cols, num_seats, xs[MAX_RESERVATION_SIZE], ys[MAX_RESERVATION_SIZE];
+  ssize_t bytes_written;
 
   switch (get_next_req(req_fd)){
 
@@ -46,20 +47,34 @@ int process_request(int req_fd, int resp_fd){
       if(parse_create(req_fd, &event_id, &num_rows, &num_cols, &session_id_client)){
         return 0;
       }
-      int res = ems_create(event_id,num_rows,num_cols);
-      ssize_t bytes_written = write(resp_fd, &res, sizeof(int));
-      printf("O cliente %d mandou criar e eu criei...\n",session_id_client);
+      res = ems_create(event_id,num_rows,num_cols);
+      bytes_written = write(resp_fd, &res, sizeof(int));
       if (bytes_written < 0)
         return 0;
       if(res)
         return 0;
+      printf("O cliente %d mandou criar e eu criei...\n",session_id_client);
       break;
 
 
     case RESERVE:
+      if(parse_reserve(req_fd, &event_id, &num_seats,xs,ys,&session_id_client)){
+          return 0;
+      }
+      res = ems_reserve(event_id, num_seats, xs, ys);
+      bytes_written = write(resp_fd, &res, sizeof(int));
+      if (bytes_written < 0)
+        return 0;
+      if(res)
+        return 0;
+      printf("Esse cao: %d mandou reservar %lu seats, fds...\n",session_id_client,num_seats);
       break;
 
     case SHOW:
+      if(parse_show(req_fd,&event_id,&session_id_client)){
+          return 0;
+      }
+      printf("O laia printou-mos :%d",session_id_client);
       break;
 
     case LIST_EVENTS:

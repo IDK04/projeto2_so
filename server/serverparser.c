@@ -89,4 +89,34 @@ int parse_str(int fd, char *str){
   return 0;
 }
 
+int parse_reserve(int fd,unsigned int* event_id, size_t *num_seats,size_t *xs,size_t *ys,int *session_id){
+  if(parse_session_id(fd, session_id)){
+    return 1;
+  }
+  // read do fd 
+  if (read(fd,event_id, sizeof(unsigned int)) < 0) {
+    return 1;
+  }
+  if (read(fd,num_seats, sizeof(size_t)) < 0) {
+    return 1;
+  }
+  if (read(fd,xs, *num_seats*sizeof(size_t)) < 0) {
+    return 1;
+  }
+  if (read(fd,ys, *num_seats*sizeof(size_t)) < 0) {
+    return 1;
+  }
+  return 0;
+}
 
+int parse_show(int fd,unsigned int* event_id,int *session_id){
+  if(parse_session_id(fd, session_id)){
+    return 1;
+  }
+  // read do fd 
+  if (read(fd,event_id, sizeof(unsigned int)) < 0) {
+    return 1;
+  }
+  return 0;
+
+}

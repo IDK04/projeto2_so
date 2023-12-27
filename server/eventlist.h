@@ -25,6 +25,7 @@ struct EventList {
   struct ListNode* head;  // Head of the list
   struct ListNode* tail;  // Tail of the list
   pthread_rwlock_t rwl;   // Mutex to protect the list
+  size_t num_events;
 };
 
 /// Creates a new event list.

@@ -137,7 +137,6 @@ int ems_reserve(unsigned int event_id, size_t num_seats, size_t* xs, size_t* ys,
 }
 
 int ems_show(int out_fd, unsigned int event_id,int* session_id) {
-  //TODO: send show request to the server (through the request pipe) and wait for the response (through the response pipe)
   char request[sizeof(char)+sizeof(int)+sizeof(unsigned int)];
   memset(request, '\0', sizeof(request));
   char op_code = '5';
@@ -162,29 +161,38 @@ int ems_show(int out_fd, unsigned int event_id,int* session_id) {
   if (read(resp_fd,&num_cols, sizeof(size_t)) < 0){return 1;}
   if (read(resp_fd,&num_rows, sizeof(size_t)) < 0){return 1;}
   unsigned int seats[num_cols*num_rows];
-  if (read(resp_fd,&return_value, sizeof(unsigned int)*num_rows*num_cols) < 0){return 1;}
+  if (read(resp_fd,&seats, sizeof(seats)) < 0){return 1;}
 
-  /*char show_out[sizeof(unsigned int)*num_cols*num_rows];
-  memcpy(show_out,seats,sizeof(unsigned int)*num_cols*num_rows);
+  for (size_t i = 0; i < num_rows; i++) {
+    for (size_t j = 0; j < num_cols; j++) {
+      char buffer[16];
+      sprintf(buffer, "%u", seats[i*num_cols+j]);
 
-  int out = open(out_fd, O_WRONLY);
-  if(out < 0)
-    return 1;
+      if (print_str(out_fd, buffer)) {
+        perror("Error writing to file descriptor");
+        return 1;
+      }
 
-  ssize_t bytes_written = write(out, show_out, sizeof(show_out));
-  if (bytes_written < 0)
-    return 1;
-  
-  close(out);*/
-  
+      if (j < num_cols) {
+        if (print_str(out_fd, " ")) {
+          perror("Error writing to file descriptor");
+          return 1;
+        }
+      }
+    }
+
+    if (print_str(out_fd, "\n")) {
+      perror("Error writing to file descriptor");
+      return 1;
+    }
+  }
   return 0;
 }
 
 int ems_list_events(int out_fd,int *session_id) {
-  //TODO: send list request to the server (through the request pipe) and wait for the response (through the response pipe)
   char request[sizeof(char)+sizeof(int)+sizeof(unsigned int)];
   memset(request, '\0', sizeof(request));
-  char op_code = '5';
+  char op_code = '6';
   memcpy(request, &op_code, sizeof(char));
   memcpy(request+sizeof(char), session_id, sizeof(int));
 
@@ -203,20 +211,32 @@ int ems_list_events(int out_fd,int *session_id) {
   size_t num_events;
   if (read(resp_fd,&num_events, sizeof(size_t)) < 0){return 1;}
   unsigned int ids[num_events];
-  if (read(resp_fd,ids, sizeof(unsigned int)*num_events) < 0){return 1;}
+  if (read(resp_fd,ids, sizeof(ids)) < 0){return 1;}
 
-  /*char show_out[sizeof(unsigned int)*num_events];
-  memcpy(show_out,ids,sizeof(unsigned int)*num_events);
 
-  int out = open(out_fd, O_WRONLY);
-  if(out < 0)
-    return 1;
+  if (num_events == 0) {
+    char buff[] = "No events\n";
+    if (print_str(out_fd, buff)) {
+      perror("Error writing to file descriptor");
+      return 1;
+    }
+    return 0;
+  }
 
-  ssize_t bytes_written = write(out, show_out, sizeof(show_out));
-  if (bytes_written < 0)
-    return 1;
-  
-  close(out);*/
+  for(size_t i = 0; i < num_events; i++) {
+    char buff[] = "Event: ";
+    if (print_str(out_fd, buff)) {
+      perror("Error writing to file descriptor");
+      return 1;
+    }
+
+    char id[16];
+    sprintf(id, "%u\n", ids[i]);
+    if (print_str(out_fd, id)) {
+      perror("Error writing to file descriptor");
+      return 1;
+    }
+  }
 
   return 0;
 }

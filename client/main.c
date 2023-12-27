@@ -78,7 +78,6 @@ int main(int argc, char* argv[]) {
           fprintf(stderr, "Invalid command. See HELP for usage\n");
           continue;
         }
-
         if (ems_show(out_fd, event_id,&session_id)) fprintf(stderr, "Failed to show event\n");
         break;
 

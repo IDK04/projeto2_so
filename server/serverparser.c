@@ -60,7 +60,7 @@ int parse_create(int fd, unsigned int *event_id, size_t *num_rows, size_t *num_c
   if(parse_session_id(fd, session_id)){
     return 1;
   }
-  // read do fd 
+
   if (read(fd,event_id, sizeof(unsigned int)) < 0) {
     return 1;
   }
@@ -93,7 +93,7 @@ int parse_reserve(int fd,unsigned int* event_id, size_t *num_seats,size_t *xs,si
   if(parse_session_id(fd, session_id)){
     return 1;
   }
-  // read do fd 
+
   if (read(fd,event_id, sizeof(unsigned int)) < 0) {
     return 1;
   }
@@ -113,10 +113,9 @@ int parse_show(int fd,unsigned int* event_id,int *session_id){
   if(parse_session_id(fd, session_id)){
     return 1;
   }
-  // read do fd 
+
   if (read(fd,event_id, sizeof(unsigned int)) < 0) {
     return 1;
   }
   return 0;
-
 }

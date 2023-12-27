@@ -29,7 +29,6 @@ int process_request(int req_fd, int resp_fd){
   int session_id_client,res;
   unsigned int event_id;
   size_t num_rows, num_cols, num_seats, xs[MAX_RESERVATION_SIZE], ys[MAX_RESERVATION_SIZE];
-  ssize_t bytes_written;
 
   switch (get_next_req(req_fd)){
 
@@ -38,58 +37,95 @@ int process_request(int req_fd, int resp_fd){
       
     case QUIT:
       if (parse_session_id(req_fd, &session_id_client)){
-        return 0;
+        return 1;
       }
       printf("O cliente %d faleceu\n", session_id_client);
-      return 0;
+      return 1;
     
     case CREATE:
       if(parse_create(req_fd, &event_id, &num_rows, &num_cols, &session_id_client)){
         return 0;
       }
       res = ems_create(event_id,num_rows,num_cols);
-      bytes_written = write(resp_fd, &res, sizeof(int));
-      if (bytes_written < 0)
+      if (write(resp_fd, &res, sizeof(int)) < 0)
         return 0;
-      if(res)
-        return 0;
+
       printf("O cliente %d mandou criar e eu criei...\n",session_id_client);
       break;
 
-
     case RESERVE:
       if(parse_reserve(req_fd, &event_id, &num_seats,xs,ys,&session_id_client)){
-          return 0;
+        return 0;
       }
       res = ems_reserve(event_id, num_seats, xs, ys);
-      bytes_written = write(resp_fd, &res, sizeof(int));
-      if (bytes_written < 0)
+      if (write(resp_fd, &res, sizeof(int)) < 0)
         return 0;
-      if(res)
-        return 0;
+
       printf("Esse cao: %d mandou reservar %lu seats, fds...\n",session_id_client,num_seats);
       break;
 
-    case SHOW:
+    case SHOW:{
       if(parse_show(req_fd,&event_id,&session_id_client)){
           return 0;
       }
-      // por fazer (seguir protocolo: res | rows | cols | seats )
-      // alterar argumentos e função ems_show, escrevemos para o fdout no cliente como está la comentado
-      // atentar na ordem e como vamos fazer
-      printf("O laia printou-mos :%d",session_id_client);
-      break;
 
-    case LIST_EVENTS:
+      if(get_event_info(event_id, &num_rows, &num_cols)==1){
+        return 0;
+      }
+      char show_buffer[num_cols*num_rows*sizeof(unsigned int)];
+      res = ems_show(show_buffer, event_id);
+
+      if(res){
+        if (write(resp_fd, &res, sizeof(int)) < 0)
+          return 0;
+      }
+      else{
+        char response[sizeof(int)+2*sizeof(size_t)+(num_cols*num_rows*sizeof(unsigned int))];
+        memcpy(response, &res, sizeof(int));
+        memcpy(response+sizeof(int), &num_rows, sizeof(size_t));
+        memcpy(response+sizeof(int)+sizeof(size_t), &num_cols, sizeof(size_t));
+        memcpy(response+sizeof(int)+(2*sizeof(size_t)), show_buffer, sizeof(show_buffer));
+        if (write(resp_fd, response, sizeof(response)) < 0)
+          return 0;
+      }
+
+      printf("O laia printou-mos: %d\n",session_id_client);
       break;
-      
+    }
+    case LIST_EVENTS:{
+      if (parse_session_id(req_fd, &session_id_client)){
+        return 0;
+      }
+      size_t num_events;
+      if(get_num_events(&num_events)){
+        return 0;
+      }
+      char list_buffer[num_events*sizeof(unsigned int)];
+      res = ems_list_events(list_buffer);
+
+      if(res){
+        if (write(resp_fd, &res, sizeof(int)) < 0)
+          return 0;
+      }
+      else{
+        char response[sizeof(int)+sizeof(size_t)+(num_cols*num_rows*sizeof(unsigned int))];
+        memcpy(response, &res, sizeof(int));
+        memcpy(response+sizeof(int), &num_events, sizeof(size_t));
+        memcpy(response+sizeof(int)+sizeof(size_t), list_buffer, sizeof(list_buffer));
+        if (write(resp_fd, response, sizeof(response)) < 0)
+          return 0;
+      }
+
+      printf("O eduardo é burro: %d\n",session_id_client);
+      break;
+    }
     case EOC:
       break;
     
     default:
       break;
   }
-  return 1;
+  return 0;
 }
 
 void *clientThread(void *arguments){
@@ -116,19 +152,23 @@ void *clientThread(void *arguments){
       return NULL;
 
     int resp_fd = open(client->resp_pipe_path, O_WRONLY);
-    if(resp_fd < 0)
+    if(resp_fd < 0){
+      free(client);
       return NULL;
+    }
 
     if (write(resp_fd, &session_id, sizeof(int)) < 0) {
+      free(client);
       return NULL;
     }
 
     int req_fd = open(client->req_pipe_path, O_RDONLY);
     if(resp_fd < 0){
+      free(client);
       return NULL;
     }
 
-    while(process_request(req_fd, resp_fd));
+    while(!process_request(req_fd, resp_fd));
 
     close(req_fd);
     close(resp_fd);    

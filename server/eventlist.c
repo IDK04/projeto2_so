@@ -12,7 +12,6 @@ struct EventList* create_list() {
   }
   list->head = NULL;
   list->tail = NULL;
-  list->num_events = 0;
   return list;
 }
 

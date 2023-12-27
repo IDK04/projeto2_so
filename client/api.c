@@ -213,7 +213,6 @@ int ems_list_events(int out_fd,int *session_id) {
   unsigned int ids[num_events];
   if (read(resp_fd,ids, sizeof(ids)) < 0){return 1;}
 
-
   if (num_events == 0) {
     char buff[] = "No events\n";
     if (print_str(out_fd, buff)) {

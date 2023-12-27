@@ -18,6 +18,9 @@
 #include "serverparser.h"
 #include "queue.h"
 
+#define MAX_SHOW_SIZE 15000 * sizeof(unsigned int)
+#define MAX_LIST_EVENTS_SIZE 1000 * sizeof(size_t)
+
 Queue *q;
 int active_clients = 0;
 
@@ -69,11 +72,8 @@ int process_request(int req_fd, int resp_fd){
           return 0;
       }
 
-      if(get_event_info(event_id, &num_rows, &num_cols)==1){
-        return 0;
-      }
-      char show_buffer[num_cols*num_rows*sizeof(unsigned int)];
-      res = ems_show(show_buffer, event_id);
+      char show_buffer[MAX_SHOW_SIZE];
+      res = ems_show(show_buffer, event_id, &num_cols, &num_rows);
 
       if(res){
         if (write(resp_fd, &res, sizeof(int)) < 0)
@@ -84,7 +84,7 @@ int process_request(int req_fd, int resp_fd){
         memcpy(response, &res, sizeof(int));
         memcpy(response+sizeof(int), &num_rows, sizeof(size_t));
         memcpy(response+sizeof(int)+sizeof(size_t), &num_cols, sizeof(size_t));
-        memcpy(response+sizeof(int)+(2*sizeof(size_t)), show_buffer, sizeof(show_buffer));
+        memcpy(response+sizeof(int)+(2*sizeof(size_t)), show_buffer, num_cols*num_rows*sizeof(unsigned int));
         if (write(resp_fd, response, sizeof(response)) < 0)
           return 0;
       }
@@ -97,21 +97,19 @@ int process_request(int req_fd, int resp_fd){
         return 0;
       }
       size_t num_events;
-      if(get_num_events(&num_events)){
-        return 0;
-      }
-      char list_buffer[num_events*sizeof(unsigned int)];
-      res = ems_list_events(list_buffer);
+
+      char list_buffer[10000];
+      res = ems_list_events(list_buffer, &num_events);
 
       if(res){
         if (write(resp_fd, &res, sizeof(int)) < 0)
           return 0;
       }
       else{
-        char response[sizeof(int)+sizeof(size_t)+(num_cols*num_rows*sizeof(unsigned int))];
+        char response[sizeof(int)+sizeof(size_t)+(num_events*sizeof(unsigned int))];
         memcpy(response, &res, sizeof(int));
         memcpy(response+sizeof(int), &num_events, sizeof(size_t));
-        memcpy(response+sizeof(int)+sizeof(size_t), list_buffer, sizeof(list_buffer));
+        memcpy(response+sizeof(int)+sizeof(size_t), list_buffer, num_events*sizeof(unsigned int));
         if (write(resp_fd, response, sizeof(response)) < 0)
           return 0;
       }

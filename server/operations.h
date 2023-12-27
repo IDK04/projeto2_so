@@ -29,22 +29,11 @@ int ems_reserve(unsigned int event_id, size_t num_seats, size_t *xs, size_t *ys)
 /// Prints the given event.
 /// @param event_id Id of the event to be shown.
 /// @return 0 if the event was printed successfully, 1 otherwise.
-int ems_show(char *buffer, unsigned int event_id);
-
-/// Gives the number of rows and cols of an event
-/// @param num_rows Number of rows of the event.
-/// @param num_cols Number of columns of the event.
-/// @return 0 if the values were got successfully, 2 if the event wasnt found, 1 otherwise.
-int get_event_info(unsigned int event_id, size_t *num_rows, size_t *num_cols);
-
-/// Gives the number of rows and cols of an event
-/// @param num_events Number of events.
-/// @return 0 if the values were got successfully, 1 otherwise.
-int get_num_events(size_t *num_events);
+int ems_show(char *buffer, unsigned int event_id, size_t *num_cols, size_t *num_rows);
 
 /// Prints all the events.
 /// @param out_fd File descriptor to print the events to.
 /// @return 0 if the events were printed successfully, 1 otherwise.
-int ems_list_events(char *buffer);
+int ems_list_events(char *buffer, size_t *num_events);
 
 #endif  // SERVER_OPERATIONS_H

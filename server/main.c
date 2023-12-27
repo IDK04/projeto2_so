@@ -11,6 +11,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <signal.h>
 
 #include "common/constants.h"
 #include "common/io.h"
@@ -42,7 +43,6 @@ int process_request(int req_fd, int resp_fd){
       if (parse_session_id(req_fd, &session_id_client)){
         return 1;
       }
-      printf("O cliente %d faleceu\n", session_id_client);
       return 1;
     
     case CREATE:
@@ -53,7 +53,6 @@ int process_request(int req_fd, int resp_fd){
       if (write(resp_fd, &res, sizeof(int)) < 0)
         return 0;
 
-      printf("O cliente %d mandou criar e eu criei...\n",session_id_client);
       break;
 
     case RESERVE:
@@ -64,7 +63,6 @@ int process_request(int req_fd, int resp_fd){
       if (write(resp_fd, &res, sizeof(int)) < 0)
         return 0;
 
-      printf("Esse cao: %d mandou reservar %lu seats, fds...\n",session_id_client,num_seats);
       break;
 
     case SHOW:{
@@ -89,7 +87,6 @@ int process_request(int req_fd, int resp_fd){
           return 0;
       }
 
-      printf("O laia printou-mos: %d\n",session_id_client);
       break;
     }
     case LIST_EVENTS:{
@@ -98,7 +95,7 @@ int process_request(int req_fd, int resp_fd){
       }
       size_t num_events;
 
-      char list_buffer[10000];
+      char list_buffer[MAX_LIST_EVENTS_SIZE];
       res = ems_list_events(list_buffer, &num_events);
 
       if(res){
@@ -113,8 +110,6 @@ int process_request(int req_fd, int resp_fd){
         if (write(resp_fd, response, sizeof(response)) < 0)
           return 0;
       }
-
-      printf("O eduardo é burro: %d\n",session_id_client);
       break;
     }
     case EOC:
@@ -127,6 +122,17 @@ int process_request(int req_fd, int resp_fd){
 }
 
 void *clientThread(void *arguments){
+
+  sigset_t signal_set;
+  sigemptyset(&signal_set);
+  sigaddset(&signal_set, SIGUSR1);
+
+  if(pthread_sigmask(SIG_BLOCK, &signal_set, NULL)!=0){
+    printf("Error creating sigmask\n");
+    free(arguments);
+    return NULL;
+  }
+
   int *parsed_arguments = (int*) arguments;
   int session_id = *parsed_arguments;
   free(parsed_arguments);
@@ -180,7 +186,19 @@ void *clientThread(void *arguments){
   return NULL;
 }
 
+static void sig_handler() {
+
+  fprintf(stderr, "Caught SIGQUIT - that's all folks!\n");
+  exit(EXIT_SUCCESS);
+
+}
+
 int main(int argc, char* argv[]) {
+
+  if (signal(SIGUSR1, sig_handler) == SIG_ERR) {
+    return 1;
+  }
+
   if (argc < 2 || argc > 3) {
     fprintf(stderr, "Usage: %s\n <pipe_path> [delay]\n", argv[0]);
     return 1;

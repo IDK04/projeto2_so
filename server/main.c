@@ -12,6 +12,7 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <signal.h>
+#include <stdatomic.h>
 
 #include "common/constants.h"
 #include "common/io.h"
@@ -21,6 +22,8 @@
 
 #define MAX_SHOW_SIZE 15000 * sizeof(unsigned int)
 #define MAX_LIST_EVENTS_SIZE 1000 * sizeof(size_t)
+
+atomic_int kill_server = ATOMIC_VAR_INIT(0);
 
 Queue *q;
 int active_clients = 0;
@@ -140,12 +143,19 @@ void *clientThread(void *arguments){
   while(1){
     if (pthread_mutex_lock(&cond_mutex) != 0) {return NULL;}
 
-    while (empty_q(q)) {
+    while (empty_q(q) && !atomic_load(&kill_server)) {
       pthread_cond_wait(&empty_q_cond, &cond_mutex);
     }
 
-    while(active_clients>=MAX_SESSION_COUNT){
+    while(active_clients>=MAX_SESSION_COUNT && !atomic_load(&kill_server)){
       pthread_cond_wait(&active_clients_cond, &cond_mutex);
+    }
+
+    if(atomic_load(&kill_server)){
+      pthread_cond_signal(&empty_q_cond);
+      pthread_cond_signal(&active_clients_cond);
+      if (pthread_mutex_unlock(&cond_mutex) != 0) {return NULL;}
+      break;
     }
 
     active_clients++;
@@ -183,13 +193,18 @@ void *clientThread(void *arguments){
     if (pthread_mutex_unlock(&cond_mutex) != 0) {return NULL;}
   }
 
+  if(pthread_sigmask(SIG_UNBLOCK, &signal_set, NULL)!=0){
+    printf("Error unblocking sigmask\n");
+    return NULL;
+  }
+
   return NULL;
 }
 
-static void sig_handler() {
+static void sig_handler(int sign) {
 
-  fprintf(stderr, "Caught SIGQUIT - that's all folks!\n");
-  exit(EXIT_SUCCESS);
+  if (sign == SIGUSR1)
+    atomic_store(&kill_server, 1);
 
 }
 
@@ -251,8 +266,7 @@ int main(int argc, char* argv[]) {
     }
   }
 
-  while (1) {
-
+  while (!atomic_load(&kill_server)) {
     char req_pipe_path[MAX_PIPE_PATH_SIZE], resp_pipe_path[MAX_PIPE_PATH_SIZE];
     enum Request req = get_next_req(rx); // will either be SETUP or EOC
     if (req == SETUP){
@@ -274,6 +288,7 @@ int main(int argc, char* argv[]) {
       if (pthread_mutex_lock(&cond_mutex) != 0) {return 1;}
 
       if(!empty_q(q)){
+        printf("entrou\n");
         pthread_cond_signal(&empty_q_cond);
       }
 
@@ -284,6 +299,11 @@ int main(int argc, char* argv[]) {
       if (pthread_mutex_unlock(&cond_mutex) != 0) {return 1;}
     }
   }
+
+  if (pthread_mutex_lock(&cond_mutex) != 0) {return 1;}
+  pthread_cond_signal(&empty_q_cond);
+  pthread_cond_signal(&active_clients_cond);
+  if (pthread_mutex_unlock(&cond_mutex) != 0) {return 1;}
 
   for(int i = 0; i < MAX_SESSION_COUNT; i++){
     if(pthread_join(tid[i], NULL)){

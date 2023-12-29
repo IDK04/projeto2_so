@@ -26,8 +26,18 @@ int ems_create(unsigned int event_id, size_t num_rows, size_t num_cols);
 /// @return 0 if the reservation was created successfully, 1 otherwise.
 int ems_reserve(unsigned int event_id, size_t num_seats, size_t *xs, size_t *ys);
 
+/// Prints every event.
+/// @param event_id Id of the event to be shown.
+/// @param num_cols Number of columns.
+/// @param num_rows Number of rows.
+/// @param steats Seats to print.
+/// @return 0 if the event was printed successfully, 1 otherwise.
+int ems_show_events_server(unsigned int event_id, size_t num_rows, size_t num_cols, unsigned int *seats);
+
 /// Prints the given event.
 /// @param event_id Id of the event to be shown.
+/// @param num_cols Number of columns.
+/// @param num_rows Number of rows.
 /// @return 0 if the event was printed successfully, 1 otherwise.
 int ems_show(char *buffer, unsigned int event_id, size_t *num_cols, size_t *num_rows);
 

@@ -21,9 +21,10 @@
 #include "queue.h"
 
 #define MAX_SHOW_SIZE 15000 * sizeof(unsigned int)
-#define MAX_LIST_EVENTS_SIZE 1000 * sizeof(size_t)
+#define MAX_LIST_EVENTS_SIZE 1000 * sizeof(unsigned int)
 
 atomic_int kill_server = ATOMIC_VAR_INIT(0);
+int toggle_show = 0;
 
 Queue *q;
 int active_clients = 0;
@@ -129,6 +130,7 @@ void *clientThread(void *arguments){
   sigset_t signal_set;
   sigemptyset(&signal_set);
   sigaddset(&signal_set, SIGUSR1);
+  sigaddset(&signal_set, SIGUSR2);
 
   if(pthread_sigmask(SIG_BLOCK, &signal_set, NULL)!=0){
     printf("Error creating sigmask\n");
@@ -201,16 +203,27 @@ void *clientThread(void *arguments){
   return NULL;
 }
 
-static void sig_handler(int sign) {
+static void kill_server_handler(int sign) {
+
+  if (sign == SIGUSR2)
+    atomic_store(&kill_server, 1);
+
+}
+
+static void show_events_handler (int sign) {
 
   if (sign == SIGUSR1)
-    atomic_store(&kill_server, 1);
+    toggle_show = 1;
 
 }
 
 int main(int argc, char* argv[]) {
 
-  if (signal(SIGUSR1, sig_handler) == SIG_ERR) {
+  if (signal(SIGUSR1, show_events_handler) == SIG_ERR) {
+    return 1;
+  }
+
+  if (signal(SIGUSR2, kill_server_handler) == SIG_ERR) {
     return 1;
   }
 
@@ -249,11 +262,6 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  int rx = open(argv[1], O_RDONLY);
-  if (rx == -1) {
-      fprintf(stderr, "Server open failed: %s\n", strerror(errno));
-      return 1;
-  }
 
   pthread_t tid[MAX_SESSION_COUNT];
 
@@ -266,7 +274,52 @@ int main(int argc, char* argv[]) {
     }
   }
 
+  int rx = open(argv[1], O_RDONLY);
+  if (rx == -1) {
+      fprintf(stderr, "Server open failed: %s\n", strerror(errno));
+      return 1;
+  }
+
   while (!atomic_load(&kill_server)) {
+
+    if(toggle_show){
+      toggle_show = 0;
+      char list_buffer[MAX_LIST_EVENTS_SIZE];
+      size_t num_events = 0, num_cols = 0, num_rows = 0;
+      int res = ems_list_events(list_buffer, &num_events);
+      if(res){
+        return 1;
+      }
+      else{
+
+        if(num_events == 0){
+          char buff[] = "No events\n";
+          if (print_str(STDOUT_FILENO, buff)) {
+            perror("Error writing to file descriptor");
+            return 1;
+          }
+        }
+
+        unsigned int ids[num_events];
+        memcpy(ids, list_buffer, sizeof(ids));
+
+        for (size_t i = 0; i < num_events; i++) {
+          char show_buffer[MAX_SHOW_SIZE];
+          res = ems_show(show_buffer, ids[i], &num_cols, &num_rows);
+          if(res){
+            return 1;
+          }
+          else{
+            unsigned int seats[num_cols * num_rows];
+            memcpy(seats, show_buffer, sizeof(seats));
+            if (ems_show_events_server(ids[i], num_rows, num_cols, seats)){
+              return 1;
+            }
+          }
+        }
+      }
+    }
+
     char req_pipe_path[MAX_PIPE_PATH_SIZE], resp_pipe_path[MAX_PIPE_PATH_SIZE];
     enum Request req = get_next_req(rx); // will either be SETUP or EOC
     if (req == SETUP){
@@ -288,7 +341,6 @@ int main(int argc, char* argv[]) {
       if (pthread_mutex_lock(&cond_mutex) != 0) {return 1;}
 
       if(!empty_q(q)){
-        printf("entrou\n");
         pthread_cond_signal(&empty_q_cond);
       }
 

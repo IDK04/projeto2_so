@@ -173,6 +173,41 @@ int ems_reserve(unsigned int event_id, size_t num_seats, size_t* xs, size_t* ys)
   return 0;
 }
 
+int ems_show_events_server(unsigned int event_id, size_t num_rows, size_t num_cols, unsigned int *seats){
+  char buffer[16];
+  sprintf(buffer, "%u\n", event_id);
+  if (print_str(STDOUT_FILENO, buffer)) {
+    perror("Error writing to file descriptor");
+    return 1;
+  }
+
+  for (size_t i = 0; i < num_rows; i++) {
+    for (size_t j = 0; j < num_cols; j++) {
+      memset(buffer, 0, sizeof(buffer));
+      sprintf(buffer, "%u", seats[i*num_cols+j]);
+
+      if (print_str(STDOUT_FILENO, buffer)) {
+        perror("Error writing to file descriptor");
+        return 1;
+      }
+
+      if (j < num_cols) {
+        if (print_str(STDOUT_FILENO, " ")) {
+          perror("Error writing to file descriptor");
+          return 1;
+        }
+      }
+    }
+
+    if (print_str(STDOUT_FILENO, "\n")) {
+      perror("Error writing to file descriptor");
+      return 1;
+    }
+  }
+
+  return 0;
+}
+
 int ems_show(char *buffer, unsigned int event_id,size_t *num_cols, size_t *num_rows) {
   if (event_list == NULL) {
     fprintf(stderr, "EMS state must be initialized\n");
@@ -201,11 +236,7 @@ int ems_show(char *buffer, unsigned int event_id,size_t *num_cols, size_t *num_r
   *num_cols = event->cols;
   *num_rows = event->rows;
 
-  for (size_t i = 1; i <= event->rows; i++) {
-    for (size_t j = 1; j <= event->cols; j++) {
-      memcpy(buffer+(seat_index(event, i, j)*sizeof(unsigned int)), &event->data[seat_index(event, i, j)], sizeof(unsigned int));
-    }
-  }
+  memcpy(buffer, event->data, event->cols*event->rows*sizeof(unsigned int));
 
   pthread_mutex_unlock(&event->mutex);
   return 0;
@@ -240,7 +271,7 @@ int ems_list_events(char *buffer, size_t *num_events) {
 
     current = current->next;
   }
-  *num_events = i+1;
+  *num_events = i;
   pthread_rwlock_unlock(&event_list->rwl);
   return 0;
 }
